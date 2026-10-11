@@ -18,7 +18,6 @@ from app.conversation import (
     history_contains_prompt_injection,
 )
 from app.domain import (
-    MAX_DISCOUNT_PERCENT,
     SCOPE,
     SCOPE_REFUSAL_MESSAGE,
     STANDARD_COUPON_CODE,

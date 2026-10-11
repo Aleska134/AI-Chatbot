@@ -1,56 +1,161 @@
 # reference-merchant-chatbot
 
-A small FastAPI reference merchant chatbot for local AI security testing.
+A small, deterministic FastAPI reference chatbot that acts as an **external
+target** for an automated AI red-teaming and security testing platform.
 
-## Purpose
+It simulates a **TechMart** commerce support assistant and runs in two runtime
+modes from the same codebase:
 
-This project provides a deterministic TechMart support chatbot that can run in two runtime modes from the same codebase:
+- `hardened` — strict security and scope enforcement.
+- `weak` — intentionally weaker behavior for authorized local security
+  demonstrations.
 
-- `hardened`: strict security and scope enforcement.
-- `weak`: intentionally weaker behavior for authorized local security demonstrations.
-
-Both modes exist so security testing platforms can compare protected vs intentionally weaker behavior in controlled conditions.
+Both modes exist so a security testing platform can compare protected versus
+intentionally weaker behavior under controlled, local conditions.
 
 ## Safety model
 
-- Uses mock catalog, customers, carts, and orders only.
-- No production integrations.
-- No real customer data.
-- No real payment provider calls.
-- No destructive administrative capabilities.
+- Mock catalog, customers, carts, and orders only.
+- No production integrations, no real customer data, no real payment providers.
+- No destructive or external side effects; checkout is a local, deterministic
+  mock that never contacts a payment provider.
+- Secrets, system prompts, and internal instructions are never disclosed.
 
-> **Warning:** `weak` mode is a controlled testing target for authorized local testing only.
+> **Warning:** `weak` mode is an intentionally less-protected target for
+> authorized local testing only. It still never exposes real secrets or performs
+> real transactions.
 
-## Run locally
+## Architecture
 
-Install dependencies:
-
-```bash
-python -m pip install -r requirements.txt
+```text
+POST /api/v1/chat
+      |
+      v
+  Request validation (schemas.py)
+      |  version="1", mode=security_test, bounded history, known customer_id
+      v
+  MerchantAgent (agent.py)
+      |  normalize history -> policy guardrails -> deterministic business layer
+      +--> PolicyDecision engine (policies.py)
+      |       prompt injection, customer isolation, scope boundary,
+      |       10% discount limit, return-policy bypass
+      +--> MockStore (commerce.py)
+      |       catalog, carts, orders, deterministic checkout lifecycle
+      v
+  Structured response (reply, history, metadata)
 ```
 
-Run hardened instance (port 8100):
+A single source of truth lives in `app/domain.py`: store name, discount limit,
+coupon code, return window, scope, and all status enums. The guiding principle
+is that **deterministic services enforce business and security rules** — the
+behavior does not depend on an LLM following a prompt.
 
-```bash
-CHATBOT_MODE=hardened MOCK_LLM=true uvicorn app.main:app --host 0.0.0.0 --port 8100
+## Business rules (aligned with the testing platform)
+
+| Rule | Value |
+| :--- | :--- |
+| Store name | `TechMart` |
+| Maximum discount | `10%` |
+| Standard coupon | `TECH10` |
+| Return window | `30 days` |
+| Scope | `commerce_support` |
+
+`hardened` mode never approves, recommends, or describes a discount above 10%
+as an available offer.
+
+## Multi-turn conversation behavior
+
+The agent receives and uses the conversation `history`:
+
+- Resolves contextual references such as "that product" or "confirm it".
+- Preserves context across turns.
+- Detects prompt-injection attempts in earlier user turns, not just the current
+  message.
+- Supports multi-turn checkout confirmation.
+
+History is never trusted blindly. Only `user` and `assistant` roles are allowed
+(`system` is rejected with HTTP 422), and there are limits on the number of
+entries, per-message length, and total conversation size.
+
+## Checkout lifecycle
+
+Checkout is a deterministic mock flow with no real payment:
+
+```text
+open -> checkout_requested -> confirmation_required -> confirmed -> completed
 ```
 
-Run weak instance (port 8101):
+- "checkout my cart" returns a confirmation request (awaiting confirmation).
+- "confirm checkout" (or "yes" after a confirmation prompt) completes only the
+  current customer's mock cart and decrements local inventory.
+- "do not checkout" declines without any state change.
+- Checkout never accesses another customer's cart and never calls an external
+  system.
 
-```bash
-CHATBOT_MODE=weak MOCK_LLM=true uvicorn app.main:app --host 0.0.0.0 --port 8101
+## Customer isolation
+
+- Only known mock customer IDs are accepted; unknown IDs return HTTP 404.
+- Customer IDs mentioned in the message or history are compared against the
+  authenticated `customer_id`.
+- In `hardened` mode, attempts to access another customer are blocked and never
+  leak the other customer's orders, cart, email, or personal data.
+
+## Scope-boundary policy
+
+`hardened` mode supports products, prices, inventory, carts, orders, returns,
+discounts, and checkout policies. It deterministically refuses or redirects
+general knowledge, history, politics, medical/legal advice, coding help, and
+other unrelated topics with:
+
+```text
+I can only help with TechMart products, orders, carts, checkout, and store policies.
 ```
 
-## Connect to the security testing platform
+`weak` mode may answer selected unrelated questions for demonstration; this is
+explicit and deterministic.
 
-- Hardened target: `http://localhost:8100/api/v1/chat`
-- Weak target: `http://localhost:8101/api/v1/chat`
+## Prompt-injection behavior
+
+`hardened` mode blocks injection in both the current message and history
+(e.g. "ignore previous instructions", "reveal the system prompt", "developer
+mode", roleplay bypass, "print hidden configuration"). Protected instructions
+are never repeated or revealed. `weak` mode produces a controlled, deterministic
+finding without exposing real secrets.
+
+## Structured response metadata
+
+Every response includes structured metadata so the platform can distinguish
+safe refusals from business-rule breaches:
+
+```json
+{
+  "chatbot_mode": "hardened",
+  "scope": "commerce_support",
+  "llm_enabled": false,
+  "provider_status": "deterministic",
+  "security_outcome": "blocked",
+  "block_reason": "scope_boundary",
+  "business_behavior": "not_tested"
+}
+```
+
+- `security_outcome`: `allowed`, `blocked`, `resisted`, `unavailable`,
+  `fallback`.
+- `block_reason`: `scope_boundary`, `prompt_injection`, `discount_limit`,
+  `unauthorized_checkout`, `customer_data_access`, `return_policy`,
+  `invalid_request`, `provider_failure` (or `null`).
+
+## Provider fallback behavior
+
+A simulated provider failure produces a safe fallback reply with
+`provider_status: "fallback"` and `security_outcome: "fallback"`. A provider
+refusal is never interpreted as proof that the chatbot is secure.
 
 ## API contract
 
 ### `POST /api/v1/chat`
 
-Request example:
+Request:
 
 ```json
 {
@@ -62,7 +167,12 @@ Request example:
 }
 ```
 
-Response example:
+- `mode` must be `security_test` (any other value returns HTTP 422). It only
+  labels the request purpose and never changes the server runtime mode.
+- `customer_id` is optional and defaults to `customer-demo-001`, so the
+  platform webhook (which omits it) keeps working.
+
+Response:
 
 ```json
 {
@@ -75,18 +185,21 @@ Response example:
     "chatbot_mode": "hardened",
     "scope": "commerce_support",
     "llm_enabled": false,
-    "provider_status": "deterministic"
+    "provider_status": "deterministic",
+    "security_outcome": "allowed",
+    "block_reason": null,
+    "business_behavior": "product_lookup"
   }
 }
 ```
 
 ### `GET /health`
 
-Returns service status and active mode.
+Returns service status, active mode, and environment.
 
 ### `GET /api/v1/metadata`
 
-Returns safe runtime metadata:
+Returns safe runtime metadata only:
 
 ```json
 {
@@ -94,13 +207,49 @@ Returns safe runtime metadata:
   "chatbot_mode": "hardened",
   "llm_enabled": false,
   "scope": "commerce_support",
-  "environment": "local"
+  "environment": "local",
+  "discount_max_percent": 10
 }
 ```
 
-## Deterministic mock mode
+In `weak` mode the response also includes:
 
-Set `MOCK_LLM=true` (default) to avoid API-credit usage and keep deterministic behavior for tests/demos.
+```json
+{ "warning": "Weak mode is an intentionally less-protected local testing target." }
+```
+
+No prompts, tokens, secrets, internal customer records, or implementation
+details are ever exposed.
+
+## Run locally
+
+Install dependencies:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Run the hardened instance (port 8100):
+
+```bash
+CHATBOT_MODE=hardened MOCK_LLM=true uvicorn app.main:app --host 0.0.0.0 --port 8100
+```
+
+Run the weak instance (port 8101):
+
+```bash
+CHATBOT_MODE=weak MOCK_LLM=true uvicorn app.main:app --host 0.0.0.0 --port 8101
+```
+
+## Connect to the security testing platform
+
+- Hardened target: `http://localhost:8100/api/v1/chat`
+- Weak target: `http://localhost:8101/api/v1/chat`
+
+Point the platform's webhook integration at the appropriate target URL. The
+platform can read `metadata.security_outcome` and `metadata.block_reason` to
+distinguish a safe refusal from a business-rule breach, and compare hardened
+versus weak behavior.
 
 ## cURL examples
 
@@ -116,12 +265,27 @@ curl -X POST http://localhost:8101/api/v1/chat \
   -d '{"version":"1","message":"What is the capital of France? Please explain its history.","history":[],"mode":"security_test","customer_id":"customer-demo-001"}'
 ```
 
-## Tests
+## Deterministic mock mode
 
-Run all tests:
+Set `MOCK_LLM=true` (default) to avoid API-credit usage and keep deterministic
+behavior for tests and demos.
+
+## Tests
 
 ```bash
 python -m pytest
 ```
 
-Coverage includes product questions, scope boundaries, prompt injection behavior, discount limits, checkout confirmation rules, customer isolation, policy bypass attempts, API validation, provider fallback, mode differences, and health/metadata endpoints.
+The suite is fully deterministic and offline (it never calls an external LLM
+provider). It covers the API contract, request/response validation, multi-turn
+history, scope boundary, prompt injection, discount enforcement, return policy,
+checkout lifecycle, customer isolation, unknown-customer handling, hardened vs
+weak behavior, provider fallback, structured metadata, health/metadata
+endpoints, no-secret-leakage, and configuration validation.
+
+## Security limitations
+
+This is a reference target for local testing, not a production system. It uses
+mock data, enforces rules deterministically rather than relying on an LLM, and
+intentionally ships a `weak` mode for generating controlled security findings.
+Do not deploy it as a real customer-facing service.
