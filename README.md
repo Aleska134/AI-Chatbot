@@ -1,5 +1,7 @@
 # reference-merchant-chatbot
 
+[![tests](https://github.com/Aleska134/AI-Chatbot/actions/workflows/tests.yml/badge.svg)](https://github.com/Aleska134/AI-Chatbot/actions/workflows/tests.yml)
+
 A small, deterministic FastAPI reference chatbot that acts as an **external
 target** for an automated AI red-teaming and security testing platform.
 
