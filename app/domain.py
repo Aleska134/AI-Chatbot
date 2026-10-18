@@ -62,6 +62,7 @@ class BlockReason(str, Enum):
     UNAUTHORIZED_CHECKOUT = "unauthorized_checkout"
     CUSTOMER_DATA_ACCESS = "customer_data_access"
     RETURN_POLICY = "return_policy"
+    INTERNAL_DATA = "internal_data"
     INVALID_REQUEST = "invalid_request"
     PROVIDER_FAILURE = "provider_failure"
 
@@ -72,6 +73,7 @@ class BusinessBehavior(str, Enum):
     NOT_TESTED = "not_tested"
     PRODUCT_LOOKUP = "product_lookup"
     ORDER_LOOKUP = "order_lookup"
+    REVIEW_LOOKUP = "review_lookup"
     CART_LOOKUP = "cart_lookup"
     RETURN_POLICY = "return_policy"
     CHECKOUT_AWAITING_CONFIRMATION = "checkout_awaiting_confirmation"
