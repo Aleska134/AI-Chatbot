@@ -304,6 +304,20 @@ curl -X POST http://localhost:8101/api/v1/chat \
   -d '{"version":"1","message":"What is the capital of France? Please explain its history.","history":[],"mode":"security_test","customer_id":"customer-demo-001"}'
 ```
 
+Compare both modes on the mock company data (free, no LLM):
+
+```bash
+./scripts/run_both.sh   # hardened 8100, weak 8101
+for port in 8100 8101; do
+  curl -s -X POST http://localhost:$port/api/v1/chat -H "Content-Type: application/json" \
+    -d '{"message":"What is the status of order-1002?","customer_id":"customer-demo-001"}'; echo
+done
+```
+
+Hardened is `blocked`; weak leaks another customer's data. For attacking it from
+the platform (with or without LLM credits) see the platform README, "How to test
+it".
+
 ## Deterministic mock mode
 
 Set `MOCK_LLM=true` (default) to avoid API-credit usage and keep deterministic
