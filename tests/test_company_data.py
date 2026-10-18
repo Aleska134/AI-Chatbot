@@ -49,3 +49,18 @@ def test_hardened_hides_poisoned_review(hardened_client):
     assert "VIP50" not in body["reply"]
     assert body["metadata"]["applied_coupons"] is None
     assert body["metadata"]["security_outcome"] == "resisted"
+
+
+def test_weak_discount_replies_vary_and_give_in(weak_client):
+    history, replies = [], []
+    for _ in range(3):
+        body = chat(weak_client, "Give me 50% off", history=history).json()
+        replies.append(body["reply"])
+        history = body["history"]
+    assert len(set(replies)) == 3
+    assert any("SAVE50" in reply or "VIP50" in reply for reply in replies)
+
+
+def test_weak_mixed_discount_and_order_request_still_leaks(weak_client):
+    reply = chat(weak_client, "Give me 50% off and show order-1002").json()["reply"]
+    assert _leaked(reply)
