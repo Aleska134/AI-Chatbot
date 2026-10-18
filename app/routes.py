@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import secrets
+
+from fastapi import APIRouter, Header, HTTPException
 
 from app import commerce
 from app.agent import MerchantAgent
@@ -27,7 +29,14 @@ def build_router(settings: Settings) -> APIRouter:
     agent = MerchantAgent(settings)
 
     @router.post("/api/v1/chat", response_model=ChatResponse)
-    def chat(payload: ChatRequest) -> ChatResponse:
+    def chat(
+        payload: ChatRequest,
+        authorization: str | None = Header(default=None),
+    ) -> ChatResponse:
+        if settings.auth_token and not secrets.compare_digest(
+            authorization or "", f"Bearer {settings.auth_token}"
+        ):
+            raise HTTPException(status_code=401, detail="Invalid or missing token.")
         # Deterministic customer validation: unknown ids are rejected safely.
         if not commerce.MockStore.is_known_customer(payload.customer_id):
             raise HTTPException(
