@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException
 
@@ -31,7 +32,7 @@ def build_router(settings: Settings) -> APIRouter:
     @router.post("/api/v1/chat", response_model=ChatResponse)
     def chat(
         payload: ChatRequest,
-        authorization: str | None = Header(default=None),
+        authorization: Optional[str] = Header(default=None),
     ) -> ChatResponse:
         if settings.auth_token and not secrets.compare_digest(
             authorization or "", f"Bearer {settings.auth_token}"
