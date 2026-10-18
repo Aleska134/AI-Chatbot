@@ -8,6 +8,7 @@ labels the purpose of the request.
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,9 @@ class Settings(BaseSettings):
     discount_max_percent: int = Field(
         default=MAX_DISCOUNT_PERCENT, alias="DISCOUNT_MAX_PERCENT"
     )
+    # When set, /api/v1/chat requires "Authorization: Bearer <token>", the
+    # header the security testing platform sends for targets saved with a token.
+    auth_token: Optional[str] = Field(default=None, alias="CHATBOT_AUTH_TOKEN")
 
     @field_validator("chatbot_mode")
     @classmethod

@@ -243,12 +243,25 @@ Run the weak instance (port 8101):
 CHATBOT_MODE=weak MOCK_LLM=true uvicorn app.main:app --host 0.0.0.0 --port 8101
 ```
 
+Or start both at once (Ctrl+C stops both):
+
+```bash
+./scripts/run_both.sh
+```
+
+Set `CHATBOT_AUTH_TOKEN` to require `Authorization: Bearer <token>` on
+`/api/v1/chat` (recommended for any publicly reachable deployment). Save the
+same token on the platform target so it is sent with every request.
+
 ## Connect to the security testing platform
 
 - Hardened target: `http://localhost:8100/api/v1/chat`
 - Weak target: `http://localhost:8101/api/v1/chat`
 
-Point the platform's webhook integration at the appropriate target URL. The
+Start the platform with `ALLOW_PRIVATE_WEBHOOKS=true` (localhost targets are
+blocked otherwise), save each URL as a target (`POST /api/v1/targets`), then run
+the multi-turn attacker against it with
+`POST /api/v1/simulation/loop {"target_id": "...", "turns": 3}`. The
 platform can read `metadata.security_outcome` and `metadata.block_reason` to
 distinguish a safe refusal from a business-rule breach, and compare hardened
 versus weak behavior.
