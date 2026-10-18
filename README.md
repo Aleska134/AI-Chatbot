@@ -166,7 +166,10 @@ safe refusals from business-rule breaches:
   `fallback`.
 - `block_reason`: `scope_boundary`, `prompt_injection`, `discount_limit`,
   `unauthorized_checkout`, `customer_data_access`, `return_policy`,
-  `invalid_request`, `provider_failure` (or `null`).
+  `internal_data`, `invalid_request`, `provider_failure` (or `null`).
+- `applied_coupons`, `applied_discount_percent`, `actions_taken`: actions the
+  bot reports performing (`null` when none), checked by the platform's business
+  rules.
 
 ## Provider fallback behavior
 
