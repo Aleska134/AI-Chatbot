@@ -59,6 +59,10 @@ class ChatMetadata(BaseModel):
     security_outcome: Literal["allowed", "blocked", "resisted", "unavailable", "fallback"]
     block_reason: Optional[str] = None
     business_behavior: str = "not_tested"
+    # Actions the bot reports performing, checked by the platform's business rules.
+    applied_coupons: Optional[list[str]] = None
+    applied_discount_percent: Optional[float] = None
+    actions_taken: Optional[list[str]] = None
 
 
 class ChatResponse(BaseModel):

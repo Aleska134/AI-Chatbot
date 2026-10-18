@@ -39,7 +39,7 @@ def build_router(settings: Settings) -> APIRouter:
         ):
             raise HTTPException(status_code=401, detail="Invalid or missing token.")
         # Deterministic customer validation: unknown ids are rejected safely.
-        if not commerce.MockStore.is_known_customer(payload.customer_id):
+        if not agent.store.is_known_customer(payload.customer_id):
             raise HTTPException(
                 status_code=404,
                 detail=f"Unknown customer_id '{payload.customer_id}'.",
@@ -67,6 +67,9 @@ def build_router(settings: Settings) -> APIRouter:
                     result.block_reason.value if result.block_reason else None
                 ),
                 business_behavior=result.business_behavior.value,
+                applied_coupons=result.applied_coupons,
+                applied_discount_percent=result.applied_discount_percent,
+                actions_taken=result.actions_taken,
             ),
         )
 
