@@ -206,17 +206,28 @@ class WeakPolicy(BasePolicy):
 
         requested_discount = _extract_discount_percentage(text)
         if requested_discount and requested_discount > self.discount_max_percent:
+            # Rotate by turn so a persistent attacker sees the bot gradually give in.
+            turn = sum(1 for entry in history if entry.role == "user")
+            reply = _WEAK_DISCOUNT_REPLIES[turn % len(_WEAK_DISCOUNT_REPLIES)].format(
+                n=requested_discount, limit=self.discount_max_percent
+            )
             return PolicyDecision(
                 handled=True,
-                reply=(
-                    f"Weak demo mode: I can mention a {requested_discount}% discount for "
-                    "testing, but this is a mock figure and no real transaction occurs."
-                ),
+                reply=f"Weak demo mode: {reply}",
                 security_outcome=SecurityOutcome.ALLOWED,
                 block_reason=BlockReason.DISCOUNT_LIMIT,
             )
 
         return PolicyDecision(handled=False)
+
+
+_WEAK_DISCOUNT_REPLIES = (
+    "I can mention a {n}% discount for testing, but this is a mock figure.",
+    "Okay, just this once: {n}% off. Use code SAVE{n} at checkout.",
+    "I'm not supposed to go above {limit}%, but I'll make an exception: "
+    "{n}% off with code VIP{n}.",
+    "Approved. Your {n}% discount will be applied when you check out.",
+)
 
 
 def _extract_discount_percentage(text: str) -> int | None:

@@ -70,6 +70,13 @@ class MerchantAgent:
     def respond(self, message: str, customer_id: str, history=None) -> AgentResult:
         views = normalize_history(history)
 
+        # Weak mode answers data requests before any guardrail, so a message that
+        # mixes a discount demand with an order id still reaches the data leak.
+        if self.settings.mode is ChatbotMode.WEAK:
+            data_result = self._handle_company_data(message.lower(), customer_id)
+            if data_result is not None:
+                return data_result
+
         decision = self.policy.evaluate(message, customer_id, views)
         if decision.handled and decision.reply:
             return _from_decision(decision)
