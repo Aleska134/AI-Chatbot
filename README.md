@@ -1,9 +1,21 @@
 # reference-merchant-chatbot
 
 [![tests](https://github.com/Aleska134/AI-Chatbot/actions/workflows/tests.yml/badge.svg)](https://github.com/Aleska134/AI-Chatbot/actions/workflows/tests.yml)
+[![live demo](https://img.shields.io/badge/live%20demo-online-brightgreen)](https://reference-merchant-chatbot.onrender.com/health)
 
 A small, deterministic FastAPI reference chatbot that acts as an **external
 target** for an automated AI red-teaming and security testing platform.
+
+**Live demo:** <https://reference-merchant-chatbot.onrender.com> — deployed on
+Render (hardened mode). The `/health` and `/api/v1/metadata` endpoints are
+public; `/api/v1/chat` requires a bearer token.
+
+> ⏳ **Heads-up (free tier):** the service sleeps after ~15 minutes of
+> inactivity, so the **first request after idle takes ~30–60 seconds** while
+> Render wakes the container. Later requests are fast (~150 ms). If a demo looks
+> unresponsive at first, hit `/health` once to wake it and retry. This cold
+> start is harmless here because the service is an HTTP-queried security target,
+> not a user-facing page.
 
 It simulates a **TechMart** commerce support assistant and runs in two runtime
 modes from the same codebase:
@@ -297,20 +309,20 @@ Once live, verify the service:
 
 ```bash
 # Health (no token needed)
-curl https://<your-service>.onrender.com/health
+curl https://reference-merchant-chatbot.onrender.com/health
 
 # Chat (send the generated token)
-curl -X POST https://<your-service>.onrender.com/api/v1/chat \
+curl -X POST https://reference-merchant-chatbot.onrender.com/api/v1/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <CHATBOT_AUTH_TOKEN>" \
   -d '{"version":"1","message":"Show me wireless headphones","history":[],"mode":"security_test","customer_id":"customer-demo-001"}'
 ```
 
-> **Free-tier note:** Render's free web services sleep after inactivity, so the
-> first request after idle takes a few seconds to wake (cold start). That is
-> fine for a security-testing target queried over HTTP; it is not a user-facing
-> page. To keep it warm, deploy the weak instance separately with
-> `CHATBOT_MODE=weak`, or ping `/health` on a schedule.
+> **Free-tier note:** Render's free web services sleep after ~15 minutes of
+> inactivity, so the first request after idle takes ~30–60 seconds to wake
+> (cold start); later requests are fast. That is fine for a security-testing
+> target queried over HTTP; it is not a user-facing page. To keep it warm, ping
+> `/health` on a schedule (e.g. UptimeRobot every 10 minutes).
 
 To run the **weak** target too, add a second service to `render.yaml` (or a
 second Blueprint) with `CHATBOT_MODE=weak`.
