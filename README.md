@@ -1,9 +1,14 @@
 # reference-merchant-chatbot
 
 [![tests](https://github.com/Aleska134/AI-Chatbot/actions/workflows/tests.yml/badge.svg)](https://github.com/Aleska134/AI-Chatbot/actions/workflows/tests.yml)
+[![live demo](https://img.shields.io/badge/live%20demo-online-brightgreen)](https://reference-merchant-chatbot.onrender.com/health)
 
 A small, deterministic FastAPI reference chatbot that acts as an **external
 target** for an automated AI red-teaming and security testing platform.
+
+**Live demo:** <https://reference-merchant-chatbot.onrender.com> — deployed on
+Render (hardened mode). The `/health` and `/api/v1/metadata` endpoints are
+public; `/api/v1/chat` requires a bearer token.
 
 It simulates a **TechMart** commerce support assistant and runs in two runtime
 modes from the same codebase:
@@ -297,10 +302,10 @@ Once live, verify the service:
 
 ```bash
 # Health (no token needed)
-curl https://<your-service>.onrender.com/health
+curl https://reference-merchant-chatbot.onrender.com/health
 
 # Chat (send the generated token)
-curl -X POST https://<your-service>.onrender.com/api/v1/chat \
+curl -X POST https://reference-merchant-chatbot.onrender.com/api/v1/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <CHATBOT_AUTH_TOKEN>" \
   -d '{"version":"1","message":"Show me wireless headphones","history":[],"mode":"security_test","customer_id":"customer-demo-001"}'
