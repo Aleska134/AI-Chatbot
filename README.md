@@ -277,6 +277,44 @@ Set `CHATBOT_AUTH_TOKEN` to require `Authorization: Bearer <token>` on
 `/api/v1/chat` (recommended for any publicly reachable deployment). Save the
 same token on the platform target so it is sent with every request.
 
+## Deploy on Render
+
+The repository ships a [`render.yaml`](render.yaml) blueprint, so a public
+deployment takes a few clicks and no server configuration:
+
+1. On [render.com](https://render.com), choose **New → Blueprint** and connect
+   this GitHub repository.
+2. Render reads `render.yaml` and provisions a free web service that installs
+   `requirements.txt`, starts uvicorn on its `$PORT`, and health-checks
+   `/health`.
+3. The blueprint sets `CHATBOT_MODE=hardened`, `MOCK_LLM=true`,
+   `ENVIRONMENT=production`, and auto-generates a `CHATBOT_AUTH_TOKEN`. Copy
+   that token (Render → service → **Environment**) and save it on the security
+   platform when you register this target, so it is sent as
+   `Authorization: Bearer <token>`.
+
+Once live, verify the service:
+
+```bash
+# Health (no token needed)
+curl https://<your-service>.onrender.com/health
+
+# Chat (send the generated token)
+curl -X POST https://<your-service>.onrender.com/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <CHATBOT_AUTH_TOKEN>" \
+  -d '{"version":"1","message":"Show me wireless headphones","history":[],"mode":"security_test","customer_id":"customer-demo-001"}'
+```
+
+> **Free-tier note:** Render's free web services sleep after inactivity, so the
+> first request after idle takes a few seconds to wake (cold start). That is
+> fine for a security-testing target queried over HTTP; it is not a user-facing
+> page. To keep it warm, deploy the weak instance separately with
+> `CHATBOT_MODE=weak`, or ping `/health` on a schedule.
+
+To run the **weak** target too, add a second service to `render.yaml` (or a
+second Blueprint) with `CHATBOT_MODE=weak`.
+
 ## Connect to the security testing platform
 
 - Hardened target: `http://localhost:8100/api/v1/chat`
