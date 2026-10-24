@@ -296,14 +296,16 @@ deployment takes a few clicks and no server configuration:
 
 1. On [render.com](https://render.com), choose **New → Blueprint** and connect
    this GitHub repository.
-2. Render reads `render.yaml` and provisions a free web service that installs
-   `requirements.txt`, starts uvicorn on its `$PORT`, and health-checks
-   `/health`.
-3. The blueprint sets `CHATBOT_MODE=hardened`, `MOCK_LLM=true`,
-   `ENVIRONMENT=production`, and auto-generates a `CHATBOT_AUTH_TOKEN`. Copy
-   that token (Render → service → **Environment**) and save it on the security
-   platform when you register this target, so it is sent as
-   `Authorization: Bearer <token>`.
+2. Render reads `render.yaml` and provisions **two** free web services from the
+   same codebase (each installs `requirements.txt`, starts uvicorn on its
+   `$PORT`, and health-checks `/health`):
+   - `reference-merchant-chatbot` — `CHATBOT_MODE=hardened`
+   - `reference-merchant-chatbot-weak` — `CHATBOT_MODE=weak`
+3. Both set `MOCK_LLM=true`, `ENVIRONMENT=production`, and each auto-generates
+   its **own** `CHATBOT_AUTH_TOKEN`. Copy each token (Render → service →
+   **Environment**) and save it on the security platform when you register that
+   instance as a target, so it is sent as `Authorization: Bearer <token>`.
+   Register both as separate targets to compare hardened vs. weak behavior.
 
 Once live, verify the service:
 
@@ -324,8 +326,11 @@ curl -X POST https://reference-merchant-chatbot.onrender.com/api/v1/chat \
 > target queried over HTTP; it is not a user-facing page. To keep it warm, ping
 > `/health` on a schedule (e.g. UptimeRobot every 10 minutes).
 
-To run the **weak** target too, add a second service to `render.yaml` (or a
-second Blueprint) with `CHATBOT_MODE=weak`.
+The **weak** instance (`reference-merchant-chatbot-weak`) is already defined in
+`render.yaml`, so it deploys alongside the hardened one. Verify its mode with
+`curl https://<weak-service>.onrender.com/api/v1/metadata` → `"chatbot_mode":
+"weak"`. Running both in parallel avoids flipping `CHATBOT_MODE` and
+redeploying when you want to compare the two.
 
 ## Connect to the security testing platform
 
